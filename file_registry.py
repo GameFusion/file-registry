@@ -104,12 +104,30 @@ def add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checks
     cnx.commit()
     cursor.close()
 
+def get_file_paths(cnx):
+    cursor = cnx.cursor()
+    try:
+        cursor.execute("SELECT file_path FROM files")
+        # Fetch all results and extract 'file_path' into a list
+        file_paths = [item[0] for item in cursor.fetchall()]
+        return file_paths
+    except mysql.connector.Error as err:
+        print(f"Error fetching file paths: {err}")
+        return []
+    finally:
+        cursor.close()
+
 def scan_directory(cnx, directory_path):
     # Load excluded directories and files from JSON files
     with open('excluded_dirs.json') as f:
         excluded_dirs = set(json.load(f))
     with open('excluded_files.json') as f:
         excluded_files = set(json.load(f))
+
+    # loading cached database
+    print("loading files database to cach")
+    file_paths_list = get_file_paths(cnx)
+    print("done caching")
 
     # Prepare a list to store all file paths
     print("scaning files...")
@@ -122,7 +140,8 @@ def scan_directory(cnx, directory_path):
             # Skip the excluded files
             if file in excluded_files:
                 continue
-
+            if file in file_paths_list:
+                continue
             all_files.append(os.path.join(root, file))
 
     print("file count :", len(all_files))
@@ -132,10 +151,11 @@ def scan_directory(cnx, directory_path):
 
     for file_path in all_files:
 
+        #
         # fast mode
-        if file_exists_in_database(cnx, file_path):
-            pbar.update(1)
-            continue
+        #if file_exists_in_database(cnx, file_path):
+        #    pbar.update(1)
+        #    continue
 
         hostname = platform.node()
         ip_address = socket.gethostbyname(hostname)

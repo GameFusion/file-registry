@@ -10,9 +10,17 @@ import getpass
 from datetime import datetime
 import xattr
 
+import mysql.connector
 import registry_database
+import logging
+
+logging.basicConfig(filename='error_log.log', level=logging.ERROR,
+                    format='%(asctime)s:%(levelname)s:%(message)s')
 
 file_count = 0
+
+def sanitize_string(input_str):
+    return input_str.encode('utf-8', 'replace').decode('utf-8')
 
 def file_exists_in_database(cnx, file_path):
 
@@ -97,7 +105,16 @@ def add_to_database_bulk_add(cnx, cursor, hostname, ip_address, os_version, file
     data = (hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
 
     # Process each file
-    cursor.execute(insert_query, data)
+    try:
+        cursor.execute(insert_query, data)
+    except mysql.connector.Error as err:
+    #except:
+        print("Error occurred during insert: ", err)
+        print("Data causing error: ", data)
+        #logging.error(f"Error occurred during insert: {err}")
+        #logging.error(f"Data causing error: {data}")
+        logging.error("Data causing error: ", sanitize_string(file_path))
+        return
 
 def add_to_database_bulk_commit(cnx):
     cnx.commit()
@@ -128,7 +145,8 @@ def get_stored_md5_checksum(file_path):
 
     try:
         md5_checksum = xattr.getxattr(file_path, "user.md5_checksum")
-        print("File ", file_count, file_path)
+        safe_file_path = file_path.encode('utf-8', 'replace').decode('utf-8')
+        print("File ", file_count, safe_file_path)
         file_count += 1
         return md5_checksum.decode("utf-8")  # Convert bytes to string
     except OSError:
@@ -240,7 +258,8 @@ def scan_directory(cnx, directory_path):
             md5_checksum = get_stored_md5_checksum(file_path)
             if md5_checksum is None :
                 continue
-            print("ADDING to DB ", file_count, file_path, md5_checksum)
+            safe_file_path = file_path.encode('utf-8', 'replace').decode('utf-8')
+            print("ADDING to DB ", file_count, safe_file_path, md5_checksum)
 
             file_count += 1
 

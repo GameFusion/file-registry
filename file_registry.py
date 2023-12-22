@@ -133,11 +133,12 @@ def scan_directory(cnx, directory_path):
     print("scaning files...")
     all_files = []
     print("file_paths len in database", len(file_paths_list))
+    match_count = 0
+    add_count = 0
     for root, dirs, files in os.walk(directory_path):
         # Filter out the excluded directories
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
-        match_count = 0
-        add_count = 0
+
         for file in files:
             # Skip the excluded files
             if file in excluded_files:
@@ -152,7 +153,7 @@ def scan_directory(cnx, directory_path):
 
             all_files.append(file_path)
             if add_count % 100 == 0:
-                print("adding file", add_count, end='\r')
+                print("adding file ", add_count, "     ", end='\r')
             add_count = add_count+1
 
     print("found matching files ", match_count)

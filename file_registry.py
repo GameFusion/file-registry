@@ -132,12 +132,11 @@ def scan_directory(cnx, directory_path):
     # Prepare a list to store all file paths
     print("scaning files...")
     all_files = []
-    print("file_paths_list", file_paths_list)
-    print("file_paths len", len(file_paths_list))
+    print("file_paths len in database", len(file_paths_list))
     for root, dirs, files in os.walk(directory_path):
         # Filter out the excluded directories
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
-
+        match_count = 0
         for file in files:
             # Skip the excluded files
             if file in excluded_files:
@@ -146,12 +145,15 @@ def scan_directory(cnx, directory_path):
             file_path = os.path.join(root, file)
             
             if file_path in file_paths_list:
-                print("found match", file)
+                #print("found match", file)
+                match_count = match_count+1
                 continue
 
-            all_files.append(os.path.join(root, file))
+            all_files.append(file_path)
 
+            print("adding file", len(all_files), end='\r')
 
+    print("found matching files ", match_count)
     print("file count :", len(all_files))
         
     # Initialize tqdm progress bar

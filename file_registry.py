@@ -29,6 +29,14 @@ def get_database_connection():
         print(f"Error connecting to the database: {err}")
         return None
 
+def is_connection_valid(cnx):
+    try:
+        # Check if connection is still alive
+        return cnx.is_connected()
+    except:
+        # If an error occurs, assume the connection is not valid
+        return False
+
 
 def file_exists_in_database(cnx, file_path):
 
@@ -125,7 +133,7 @@ def scan_directory(cnx, directory_path):
     for file_path in all_files:
 
         # fast mode
-        if file_exists_in_database(file_path):
+        if file_exists_in_database(cnx, file_path):
             pbar.update(1)
             continue
 

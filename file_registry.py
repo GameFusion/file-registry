@@ -132,6 +132,8 @@ def scan_directory(cnx, directory_path):
     # Prepare a list to store all file paths
     print("scaning files...")
     all_files = []
+    print("file_paths_list", file_paths_list)
+    print("file_paths len", len(file_paths_list))
     for root, dirs, files in os.walk(directory_path):
         # Filter out the excluded directories
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
@@ -140,9 +142,15 @@ def scan_directory(cnx, directory_path):
             # Skip the excluded files
             if file in excluded_files:
                 continue
-            if file in file_paths_list:
+           
+            file_path = os.path.join(root, file)
+            
+            if file_path in file_paths_list:
+                print("found match", file)
                 continue
+
             all_files.append(os.path.join(root, file))
+
 
     print("file count :", len(all_files))
         

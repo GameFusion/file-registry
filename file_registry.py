@@ -120,11 +120,24 @@ def scan_directory_old(directory_path):
 from tqdm import tqdm
 
 def scan_directory(directory_path):
+    # Load excluded directories and files from JSON files
+    with open('excluded_dirs.json') as f:
+        excluded_dirs = set(json.load(f))
+    with open('excluded_files.json') as f:
+        excluded_files = set(json.load(f))
+
     # Prepare a list to store all file paths
     print("scaning files...")
     all_files = []
     for root, dirs, files in os.walk(directory_path):
+        # Filter out the excluded directories
+        dirs[:] = [d for d in dirs if d not in excluded_dirs]
+
         for file in files:
+            # Skip the excluded files
+            if file in excluded_files:
+                continue
+
             all_files.append(os.path.join(root, file))
 
     print("file count :", len(all_files))

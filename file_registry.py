@@ -7,6 +7,9 @@ import time
 import argparse
 import socket
 from tqdm import tqdm
+import getpass
+from datetime import datetime
+
 
 def get_database_connection():
     # Load the credentials from the JSON file
@@ -26,10 +29,8 @@ def get_database_connection():
         print(f"Error connecting to the database: {err}")
         return None
 
-# Example usage
-cnx = get_database_connection()
 
-def file_exists_in_database(file_path):
+def file_exists_in_database(cnx, file_path):
 
     cursor = cnx.cursor()
 
@@ -43,7 +44,7 @@ def file_exists_in_database(file_path):
         # Ensure the database connection is closed even if an error occurs
         cursor.close()
 
-def add_to_database(hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date):
+def add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date):
 
     cursor = cnx.cursor()
 
@@ -95,31 +96,7 @@ def add_to_database(hostname, ip_address, os_version, file_path, md5_checksum, f
     cnx.commit()
     cursor.close()
 
-def scan_directory_old(directory_path):
-    # Recursively scan the directory and its subdirectories
-    for root, dirs, files in os.walk(directory_path):
-        for file in files:
-            file_path = os.path.join(root, file)
-            hostname = platform.node()
-            ip_address = socket.gethostbyname(hostname)
-            os_version = platform.platform()
-
-            # Compute the MD5 checksum of the file
-            md5_hash = hashlib.md5()
-            with open(file_path, "rb") as f:
-                for chunk in iter(lambda: f.read(4096), b""):
-                    md5_hash.update(chunk)
-            md5_checksum = md5_hash.hexdigest()
-
-            # Get the file size and modification date
-            file_size = os.path.getsize(file_path)
-            modification_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
-
-            add_to_database(hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
-
-from tqdm import tqdm
-
-def scan_directory(directory_path):
+def scan_directory(cnx, directory_path):
     # Load excluded directories and files from JSON files
     with open('excluded_dirs.json') as f:
         excluded_dirs = set(json.load(f))
@@ -167,7 +144,7 @@ def scan_directory(directory_path):
         file_size = os.path.getsize(file_path)
         modification_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
 
-        add_to_database(hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
+        add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
 
         # Update the progress bar
         pbar.update(1)
@@ -175,11 +152,36 @@ def scan_directory(directory_path):
     # Close the progress bar
     pbar.close()
 
+def log_scan(cnx, directory_path):
+    hostname = platform.node()
+    ip_address = socket.gethostbyname(hostname)
+    user_name = getpass.getuser()
+    date_time_issued = datetime.now()
+
+    cursor = cnx.cursor()
+    try:
+        add_log = ("INSERT INTO scan_log "
+                   "(directory_path, host_name, host_ip, user_name, date_time_issued) "
+                   "VALUES (%s, %s, %s, %s, %s)")
+        data_log = (directory_path, hostname, ip_address, user_name, date_time_issued)
+        cursor.execute(add_log, data_log)
+        cnx.commit()
+    except mysql.connector.Error as err:
+        print(f"Error logging scan: {err}")
+    finally:
+        cursor.close()
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Scan a directory and add its files to a MySQL database.')
     parser.add_argument('directory_path', type=str, help='the path to the directory to scan')
     args = parser.parse_args()
 
-    scan_directory(args.directory_path)
+    cnx = get_database_connection()
+    if cnx and is_connection_valid(cnx):
+        log_scan(cnx, args.directory_path)  # Log the scan details
+        scan_directory(cnx, args.directory_path)  # Assuming scan_directory now also takes cnx as an argument
+        cnx.close()
+    else:
+        print("Failed to connect to the database or connection timed out.")
 

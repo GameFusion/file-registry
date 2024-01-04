@@ -9,7 +9,9 @@ import socket
 from tqdm import tqdm
 import getpass
 from datetime import datetime
+import xattr
 
+file_count = 0
 
 def get_database_connection():
     # Load the credentials from the JSON file
@@ -104,6 +106,36 @@ def add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checks
     cnx.commit()
     cursor.close()
 
+def add_to_database_bulk_open(cnx):
+    cursor = cnx.cursor()
+    return cursor
+
+def add_to_database_bulk_add(cnx, cursor, hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date):
+    """
+    file_data is a list of tuples, each tuple contains:
+    (hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
+    """
+
+    # Prepare SQL queries
+    insert_query = ("INSERT INTO files (hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date) "
+                    "VALUES (%s, %s, %s, %s, %s, %s, %s)")
+
+    data = (hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
+
+    # Process each file
+    cursor.execute(insert_query, data)
+
+def add_to_database_bulk_commit(cnx):
+    cnx.commit()
+
+def add_to_database_bulk_close(cursor):
+    cursor.close()
+
+# Example usage:
+# files_info = [(hostname1, ip1, os1, path1, md51, size1, date1), (hostname2, ip2, os2, path2, md52, size2, date2), ...]
+# add_to_database_bulk(connection, files_info)
+
+
 def get_file_paths(cnx):
     cursor = cnx.cursor()
     try:
@@ -116,6 +148,33 @@ def get_file_paths(cnx):
         return []
     finally:
         cursor.close()
+
+def get_stored_md5_checksum(file_path):
+    global file_count
+
+    try:
+        md5_checksum = xattr.getxattr(file_path, "user.md5_checksum")
+        print("File ", file_count, file_path)
+        file_count += 1
+        return md5_checksum.decode("utf-8")  # Convert bytes to string
+    except OSError:
+        return None
+
+
+def optimized_search(all_files, file_paths_list):
+    # Convert one of the lists (the larger one, ideally) to a set for faster lookup
+    file_paths_set = set(file_paths_list)
+
+    file_count = 0
+    for file_path in all_files:
+        if file_path in file_paths_set:
+            print("Found match", file_count, file_path)
+        else:
+            print("NEW", file_count, file_path)
+        file_count += 1
+
+    return
+
 
 def scan_directory(cnx, directory_path):
     # Load excluded directories and files from JSON files
@@ -133,34 +192,111 @@ def scan_directory(cnx, directory_path):
     print("scaning files...")
     all_files = []
     print("file_paths len in database", len(file_paths_list))
+    file_count = 0
     match_count = 0
     add_count = 0
+
+    enable_exclude_files = True
+    enable_match_check = True
+
+    # Convert one of the lists (the larger one, ideally) to a set for faster lookup
+    excluded_files_set = set(excluded_files)
+    file_paths_set = set(file_paths_list)
+
     for root, dirs, files in os.walk(directory_path):
         # Filter out the excluded directories
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
 
         for file in files:
             # Skip the excluded files
-            if file in excluded_files:
+            if enable_exclude_files and file in excluded_files_set:
+                print("skipping", file)
                 continue
            
+            file_count += 1;
+
             file_path = os.path.join(root, file)
             
-            if file_path in file_paths_list:
-                #print("found match", file)
+            if enable_match_check and file_path in file_paths_set:
+                print("found match", file_count, file_path)
                 match_count = match_count+1
                 continue
 
             all_files.append(file_path)
-            if add_count % 100000 == 0:
+            if add_count % 1000 == 0:
                 print("adding file ", add_count, "     ", end='\r')
             add_count = add_count+1
 
     print("found matching files ", match_count)
     print("file count :", len(all_files))
+
+    # Save the all_files list to a JSON file
+    with open('file_tree.json', 'w') as json_file:
+        json.dump(all_files, json_file, indent=4)
+
+    #optimized_search(all_files, file_paths_list)
+
         
     # Initialize tqdm progress bar
     pbar = tqdm(total=len(all_files), unit="file")
+
+
+    # Convert one of the lists (the larger one, ideally) to a set for faster lookup
+
+
+    file_count = 0
+    hostname = platform.node()
+    ip_address = socket.gethostbyname(hostname)
+    os_version = platform.platform()
+
+
+
+
+
+    batch_size = 10000
+
+    for i in range(0, len(all_files), batch_size):
+        # Create a batch of file data
+        batch_files = all_files[i:i + batch_size]
+
+        cursor = add_to_database_bulk_open(cnx)
+
+        for file_path in batch_files:
+            # Add the batch data to the database
+            md5_checksum = get_stored_md5_checksum(file_path)
+            if md5_checksum is None :
+                continue
+            print("ADDING to DB ", file_count, file_path, md5_checksum)
+
+            file_count += 1
+
+            # Get the file size and modification date
+            file_size = os.path.getsize(file_path)
+            modification_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
+            add_to_database_bulk_add(cnx, cursor, hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
+
+        add_to_database_bulk_commit(cnx)
+        add_to_database_bulk_close(cursor)
+
+        print(f"Processed batch {i // batch_size + 1}")
+
+    return
+
+    for file_path in all_files:
+        # Check if the file exists in the database using stored MD5 checksum
+        md5_checksum = get_stored_md5_checksum(file_path)
+        if md5_checksum is None :
+            continue
+        print("ADDING to DB ", file_count, file_path, md5_checksum)
+
+        file_count += 1
+
+        # Get the file size and modification date
+        file_size = os.path.getsize(file_path)
+        modification_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(os.path.getmtime(file_path)))
+        add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checksum, file_size, modification_date)
+
+    return;
 
     for file_path in all_files:
 

@@ -1,4 +1,5 @@
 import os
+import mysql.connector
 import platform
 import hashlib
 import json
@@ -10,9 +11,34 @@ import getpass
 from datetime import datetime
 import xattr
 
-import registry_database
-
 file_count = 0
+
+def get_database_connection():
+    # Load the credentials from the JSON file
+    with open('credentials.json') as f:
+        credentials = json.load(f)
+
+    # Connect to the MySQL database
+    try:
+        cnx = mysql.connector.connect(
+            user=credentials['user'],
+            password=credentials['password'],
+            host=credentials['host'],
+            database=credentials['database']
+        )
+        return cnx
+    except mysql.connector.Error as err:
+        print(f"Error connecting to the database: {err}")
+        return None
+
+def is_connection_valid(cnx):
+    try:
+        # Check if connection is still alive
+        return cnx.is_connected()
+    except:
+        # If an error occurs, assume the connection is not valid
+        return False
+
 
 def file_exists_in_database(cnx, file_path):
 
@@ -328,9 +354,8 @@ if __name__ == '__main__':
     parser.add_argument('directory_path', type=str, help='the path to the directory to scan')
     args = parser.parse_args()
 
-
-    cnx = registry_database.get_database_connection()
-    if cnx and registry_database.is_connection_valid(cnx):
+    cnx = get_database_connection()
+    if cnx and is_connection_valid(cnx):
         log_scan(cnx, args.directory_path)  # Log the scan details
         scan_directory(cnx, args.directory_path)  # Assuming scan_directory now also takes cnx as an argument
         cnx.close()

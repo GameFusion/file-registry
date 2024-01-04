@@ -83,7 +83,7 @@ def add_to_database(cnx, hostname, ip_address, os_version, file_path, md5_checks
     if result:
         count = result[0]
         if count > 1:
-            print(f"Duplicate file found: {file_path}")
+            print(f"Duplicate file found: {file_path}", len(file_path))
             # Add the duplicate file to the duplicates table
             add_duplicate = ("INSERT INTO duplicates "
                              "(file_path, count) "
@@ -152,7 +152,7 @@ def scan_directory(cnx, directory_path):
                 continue
 
             all_files.append(file_path)
-            if add_count % 100 == 0:
+            if add_count % 100000 == 0:
                 print("adding file ", add_count, "     ", end='\r')
             add_count = add_count+1
 

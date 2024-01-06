@@ -152,7 +152,7 @@ def scan_directory(cnx, directory_path):
 
             all_files.append(file_path)
             if add_count % 100 == 0:
-                print("adding file", count, end='\r')
+                print("adding file", add_count, end='\r')
             add_count = add_count+1
 
     print("found matching files ", match_count)

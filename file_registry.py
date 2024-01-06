@@ -273,6 +273,8 @@ def scan_directory(cnx, directory_path):
 
         print(f"Processed batch {i // batch_size + 1}")
 
+    print("done adding", len(all_files))
+
     return
 
     for file_path in all_files:
@@ -353,6 +355,7 @@ if __name__ == '__main__':
         log_scan(cnx, args.directory_path)  # Log the scan details
         scan_directory(cnx, args.directory_path)  # Assuming scan_directory now also takes cnx as an argument
         cnx.close()
+        print("Done")
     else:
         print("Failed to connect to the database or connection timed out.")
 

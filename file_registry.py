@@ -137,6 +137,7 @@ def scan_directory(cnx, directory_path):
         # Filter out the excluded directories
         dirs[:] = [d for d in dirs if d not in excluded_dirs]
         match_count = 0
+        add_count = 0
         for file in files:
             # Skip the excluded files
             if file in excluded_files:
@@ -150,8 +151,9 @@ def scan_directory(cnx, directory_path):
                 continue
 
             all_files.append(file_path)
-
-            print("adding file", len(all_files), end='\r')
+            if(add_count % 100)
+                print("adding file", count, end='\r')
+            add_count = add_count+1
 
     print("found matching files ", match_count)
     print("file count :", len(all_files))

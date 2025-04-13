@@ -118,7 +118,7 @@ def check_existing_xattr(file_path):
     except:
         return None
 
-def store_md5_database(cnx, file_path, md5_checksum):
+def store_md5_database(cnx, file_path, md5_checksum, scan_log_id):
     """Store MD5 checksum in the database."""
     if not md5_checksum:
         return False
@@ -137,17 +137,18 @@ def store_md5_database(cnx, file_path, md5_checksum):
         # Insert or update the MD5 metadata
         query = """
             INSERT INTO file_metadata
-            (file_path, md5_checksum, file_size, modification_date, scan_date, file_path_hash)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            (file_path, md5_checksum, file_size, modification_date, scan_date, file_path_hash, scan_log_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
             md5_checksum = %s,
             file_size = %s,
             modification_date = %s,
-            scan_date = %s
+            scan_date = %s,
+            scan_log_id = %s
         """
         cursor.execute(query, (
-            file_path, md5_checksum, file_size, modification_date, scan_date, file_path_hash,
-            md5_checksum, file_size, modification_date, scan_date
+            file_path, md5_checksum, file_size, modification_date, scan_date, file_path_hash, scan_log_id,
+            md5_checksum, file_size, modification_date, scan_date, scan_log_id
         ))
         
         cursor.close()
@@ -187,7 +188,7 @@ def check_existing_database(cnx, file_path):
     finally:
         cursor.close()
 
-def process_file(cnx, file_path, storage_mode):
+def process_file(cnx, file_path, storage_mode, scan_idx):
     """Process a single file - calculate and store MD5."""
     global file_count
     
@@ -215,7 +216,7 @@ def process_file(cnx, file_path, storage_mode):
     # Store the MD5 checksum
     success = False
     if storage_mode == "database" and cnx:
-        success = store_md5_database(cnx, file_path, md5_checksum)
+        success = store_md5_database(cnx, file_path, md5_checksum, scan_idx)
         if success and very_verbose:
             print(f"[DB] Stored MD5 for {file_path}: {md5_checksum}")
     elif storage_mode == "xattr" and XATTR_AVAILABLE:
@@ -223,7 +224,7 @@ def process_file(cnx, file_path, storage_mode):
         if success and very_verbose:
             print(f"[XATTR] Stored MD5 for {file_path}: {md5_checksum}")
     elif storage_mode == "both" and cnx and XATTR_AVAILABLE:
-        success_db = store_md5_database(cnx, file_path, md5_checksum)
+        success_db = store_md5_database(cnx, file_path, md5_checksum, scan_idx)
         success_xattr = store_md5_xattr(file_path, md5_checksum)
         success = success_db or success_xattr
         if very_verbose:
@@ -231,7 +232,7 @@ def process_file(cnx, file_path, storage_mode):
     
     return "success" if success else "error"
 
-def scan_directory(cnx, folder_path, storage_mode):
+def scan_directory(cnx, folder_path, storage_mode, scan_idx):
     """Scan a directory and process all files."""
     global folder_count, file_count, very_verbose
     
@@ -293,7 +294,7 @@ def scan_directory(cnx, folder_path, storage_mode):
         file_count += 1
         
         # Process file
-        result = process_file(cnx, file_path, storage_mode)
+        result = process_file(cnx, file_path, storage_mode, scan_idx)
         
         # Update counters
         processed += 1
@@ -396,10 +397,11 @@ if __name__ == "__main__":
     
     try:
         # Scan the directory
+        scan_idx = None
         if cnx:
             print("Scanning with database storage...")
-            log_scan.log_scan(cnx, args.folder_path)
-        scan_directory(cnx, args.folder_path, storage_mode)
+            scan_idx = log_scan.log_scan(cnx, args.folder_path)
+        scan_directory(cnx, args.folder_path, storage_mode, scan_idx)
     finally:
         # Close database connection if open
         if cnx:

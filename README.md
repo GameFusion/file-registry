@@ -26,14 +26,27 @@ File Registry helps you build and maintain a central database of file informatio
 
 ## Installation
 
+### Clone Repository
 ```bash
 # Clone the repository
 git clone https://github.com/GameFusion/file-registry.git
 cd file-registry
-
-# Install required packages
-pip install mysql-connector-python
-
+```
+### Installation Using a Virtual Environment (Optional but recommended)
+```bash
+# Optional: Create and activate a virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows, use: venv\Scripts\activate
+```
+### Installation Requirements
+```bash
+# Install required packages (either method works)
+pip install -r requirements.txt
+# Or install directly:
+# pip install mysql-connector-python
+```
+### Run the Setup Wizard
+```bash
 # Run the setup script to configure your environment
 python setup.py
 ```
@@ -52,7 +65,7 @@ The system uses JSON configuration files (stored in the `config` directory):
 2. `excluded_files.json` - Files to exclude from scanning
 3. `excluded_dirs.json` - Directories to exclude from scanning
 
-These files are created automatically by the setup script, but can be modified manually as needed.
+These files are created automatically by the setup script (setup.py), but can be modified manually as needed.
 
 ## Usage
 
@@ -78,6 +91,22 @@ python file_registry_log.py
 
 ```bash
 python md5_metadata_scanner.py /path/to/scan
+```
+
+## How to Use
+
+```bash
+# Store MD5s and file metadata to database (default)
+python md5_metadata_scanner.py /path/to/scan
+
+# Store MD5s as extended attributes (Linux)
+python md5_metadata_scanner.py /path/to/scan --storage xattr
+
+# Store MD5s in both database and extended attributes
+python md5_metadata_scanner.py /path/to/scan --storage both
+
+# Enable verbose output to see details of each file
+python md5_metadata_scanner.py /path/to/scan -v
 ```
 
 ## Project Structure
@@ -111,10 +140,6 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Authors
 
-- **Andreas Carlen** - *Initial work* - [GitHub](https://github.com/yourusername)
+- **Andreas Carlen** - *Initial work* - [GitHub](https://github.com/gamefusion)
 
-## Acknowledgments
 
-- Anyone whose code was used
-- Inspiration
-- etc.

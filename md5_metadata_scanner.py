@@ -14,6 +14,7 @@ import json
 import socket
 import platform
 from tqdm import tqdm
+import log_scan
 
 # For xattr support
 try:
@@ -371,6 +372,7 @@ if __name__ == "__main__":
         else:
             print("Connecting to database...")
             cnx = get_database_connection()
+            
             if not is_connection_valid(cnx):
                 print("WARNING: Database connection failed.")
                 if storage_mode == "database":
@@ -394,6 +396,9 @@ if __name__ == "__main__":
     
     try:
         # Scan the directory
+        if cnx:
+            print("Scanning with database storage...")
+            log_scan.log_scan(cnx, args.folder_path)
         scan_directory(cnx, args.folder_path, storage_mode)
     finally:
         # Close database connection if open

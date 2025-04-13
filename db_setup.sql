@@ -30,3 +30,17 @@ CREATE TABLE scan_log (
     user_name VARCHAR(255),
     date_time_issued DATETIME
 );
+
+-- Metadata table - Stores file metadata including MD5 checksums
+CREATE TABLE IF NOT EXISTS file_metadata (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    file_path VARCHAR(1024) NOT NULL,
+    md5_checksum VARCHAR(32) NOT NULL,
+    file_size BIGINT,
+    modification_date DATETIME,
+    scan_date DATETIME,
+    file_path_hash VARCHAR(32) NOT NULL,
+    UNIQUE INDEX (file_path_hash),
+    INDEX (file_path(190))
+);
+

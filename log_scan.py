@@ -16,9 +16,6 @@ def log_scan(cnx, directory_path):
     user_name = getpass.getuser()
     date_time_issued = datetime.now()
 
-
-
-
     cursor = cnx.cursor()
     try:
         add_log = ("INSERT INTO scan_log "
@@ -27,7 +24,10 @@ def log_scan(cnx, directory_path):
         data_log = (directory_path, hostname, ip_address, user_name, date_time_issued)
         cursor.execute(add_log, data_log)
         cnx.commit()
+        inserted_id = cursor.lastrowid  # get the auto-incremented ID
+        return inserted_id
     except mysql.connector.Error as err:
         print(f"Error logging scan: {err}")
+        return None
     finally:
         cursor.close()

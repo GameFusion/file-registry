@@ -5,7 +5,7 @@ import json
 
 def get_database_connection():
     # Load the credentials from the JSON file
-    with open('credentials.json') as f:
+    with open('config/credentials.json') as f:
         credentials = json.load(f)
 
     # Connect to the MySQL database
